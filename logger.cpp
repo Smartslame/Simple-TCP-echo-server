@@ -12,7 +12,7 @@ void Logger::log(const std::string &msg, int fd, const struct ::sockaddr_in &add
         out << std::put_time(std::localtime(&now_c), "%c")
             << ": "
             << msg
-            << ".Socket fd: "
+            << ". Socket fd: "
             << fd
             << ", ip: "
             << inet_ntoa(address.sin_addr)
