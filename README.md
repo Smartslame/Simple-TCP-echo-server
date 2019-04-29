@@ -9,6 +9,6 @@ mkdir server
 make server
 
 # go to working directory
-make watch-js
+cd server
 ```
 
