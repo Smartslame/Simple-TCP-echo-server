@@ -1,10 +1,10 @@
 #include "serverTCP.h"
 
-ServerTCP::ServerTCP() :
-                            masterSocket(-1),
-                            newConnectionSocket(-1),
-                            workersCount(std::thread::hardware_concurrency()),
-                            isRun(true) {
+ServerTCP::ServerTCP(int argc, char **argv) :
+        masterSocket(-1),
+        newConnectionSocket(-1),
+        workersCount(std::thread::hardware_concurrency()),
+        isRun(true) {
 
     ::bzero((char *) &serverAddr, sizeof(serverAddr));
     ::bzero((char *) &clientAddr, sizeof(clientAddr));
@@ -12,6 +12,8 @@ ServerTCP::ServerTCP() :
     serverAddr.sin_family          = AF_INET;
     serverAddr.sin_addr.s_addr     = inet_addr(HOST);
     serverAddr.sin_port            = htons(PORT);
+
+    parseArgs(argc, argv);
 }
 
 ServerTCP::~ServerTCP() {
@@ -27,7 +29,7 @@ void ServerTCP::run() {
 
     logger.log("Server started", masterSocket, serverAddr);
 
-    readyToStop();
+    std::thread stopper = runStopper();
 
     while (isRun) {
         if (getNewConnection()) {
@@ -35,6 +37,8 @@ void ServerTCP::run() {
             pool.addJob(func);
         }
     }
+
+    stopper.join();
 }
 
 void ServerTCP::setPort(size_t port_num) {
@@ -86,40 +90,41 @@ bool ServerTCP::getNewConnection() {
 
 void ServerTCP::handleConnection(int fd) {
     struct sockaddr_in      address;
-    socklen_t               address_len;
+    socklen_t               addressLen;
 
-    getpeername(fd, (struct sockaddr *) &address, (socklen_t *) &address_len);
+    getpeername(fd, (struct sockaddr *) &address, (socklen_t *) &addressLen);
 
     while (isRun) {
-        int     n;
+        int     returnCode;
         char    buffer[BUFFER_SIZE];
-        int     buffer_len;
+        int     bufferLen;
+
         bzero(buffer, BUFFER_SIZE);
 
-        n = ::read(fd, buffer, BUFFER_SIZE);
+        returnCode = ::read(fd, buffer, BUFFER_SIZE);
 
-        if (n < 0) {
+        if (returnCode < 0) {
             logger.logError("ERROR reading from socket");
             return;
         }
 
-        buffer_len = strlen(buffer);
+        bufferLen = strlen(buffer);
 
-        logger.log("Received message:<" + logger.deleteLastChar(buffer, buffer_len, '\n') + ">", fd, address );
+        logger.log("Received message:<" + logger.deleteLastChar(buffer, bufferLen, '\n') + ">", fd, address );
 
-        if (n == 0) {
+        if (returnCode == 0) {
             logger.log("Client disconnected", fd, address );
             break;
         }
 
-        n = ::write(fd, buffer, buffer_len);
+        returnCode = ::write(fd, buffer, bufferLen);
 
-        if (n < 0) {
+        if (returnCode < 0) {
             logger.logError("ERROR writing to socket");
             return;
         }
 
-        logger.log("Send message:<" + logger.deleteLastChar(buffer, buffer_len, '\n') + ">", fd, address );
+        logger.log("Send message:<" + logger.deleteLastChar(buffer, bufferLen, '\n') + ">", fd, address );
 
     }
 
@@ -128,10 +133,10 @@ void ServerTCP::handleConnection(int fd) {
     }
 }
 
-void ServerTCP::readyToStop() {
-    std::thread exiter([this](){
+std::thread ServerTCP::runStopper() {
+    return std::thread ([this](){
         while(1) {
-            std::string s= "";
+            std::string s = "";
             std::cin >> s;
             if (s == "q" || s == "quit") {
                 isRun = false;
@@ -140,5 +145,60 @@ void ServerTCP::readyToStop() {
             }
         }
     });
-    exiter.detach();
+}
+
+void ServerTCP::parseArgs(int argc, char **argv) {
+    if( argc == 1) {
+        return;
+    }
+    for(int argNum = 1; argNum < argc; ++argNum) {
+        std::string arg = argv[argNum];
+
+        if (arg == "-h" || arg == "--help") {
+
+            std::cout   << "This is simple echo TCP server using thread pool.\n"
+                        << "Usage: ./serverTCP [options]\n"
+                        << "Options are:\n"
+                        << "-w || --workers count   Number of threads in pool. The default is set with std::thread::hardware_concurrency()\n"
+                        << "-p || --port    port    Set the server port. The default is 8080\n"
+                        << "      --host    host    Set the server host. The default is 127.0.0.1\n"
+                        << "-l || --logs    0       Disable writing logs. The default is enable and writing to logs.txt.\n"
+                        << "-h || --help            This help page.\n";
+            exit(0);
+        }
+
+        if (arg == "-w" || arg == "--workers") {
+            if(argNum + 1 < argc) {
+                setWorkersCount(std::stoi(argv[++argNum]));
+                continue;
+            }
+        }
+
+        if (arg == "-p" || arg == "--port") {
+            if(argNum + 1 < argc) {
+                setPort(std::stoi(argv[++argNum]));
+                continue;
+            }
+        }
+
+        if (arg == "--host") {
+            if(argNum + 1 < argc) {
+                setHost(argv[++argNum]);
+                continue;
+            }
+        }
+
+        if (arg == "-l" || arg == "--logs") {
+            if(argNum + 1 < argc) {
+                if(std::stoi(argv[++argNum]) == 0 || argv[++argNum]){
+                    setLoggerStatus(false);
+                }
+                continue;
+            }
+        }
+
+        std::cout << "Incorrect arguments, please type -h or --help to see help page." << std::endl;
+        exit(1);
+
+    }
 }

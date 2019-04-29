@@ -19,7 +19,7 @@
 
 class ServerTCP {
 public:
-    ServerTCP();
+    ServerTCP(int argc, char **argv);
 
     ~ServerTCP();
 
@@ -41,5 +41,6 @@ private:
     void                    bindSocket();
     bool                    getNewConnection();
     void                    handleConnection(int fd);
-    void                    readyToStop();
+    std::thread             runStopper();
+    void                    parseArgs(int argc, char *argv[]);
 };

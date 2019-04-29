@@ -13,7 +13,7 @@ public:
 
     virtual ~ThreadPool();
 
-    void addJob(job_function job);
+    void addJob(const job_function &job);
 private:
     bool                                        isRunning;
 

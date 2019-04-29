@@ -5,7 +5,7 @@ ThreadPool::ThreadPool(size_t num_threads) : isRunning(true) {
         while (isRunning) {
             std::unique_lock<std::mutex> lock_guard(lock);
             cv.wait(lock_guard, [this]{
-                return (!jobs.empty());
+                return (!(jobs.empty()  && isRunning));
             });
 
             if (!jobs.empty()) {
@@ -19,8 +19,8 @@ ThreadPool::ThreadPool(size_t num_threads) : isRunning(true) {
     };
 
     threads.reserve(num_threads);
-    for (size_t i = 0; i < num_threads; ++i) {
-        threads.emplace_back(std::thread(thread_loop, i));
+    for (size_t threadNum = 0; threadNum < num_threads; ++threadNum) {
+        threads.emplace_back(std::thread(thread_loop, threadNum));
     }
 }
 
@@ -33,11 +33,11 @@ ThreadPool::~ThreadPool() {
     lock_guard.unlock();
     cv.notify_all();
     for (auto &t : threads) {
-        t.detach();
+        t.join();
     }
 }
 
-void ThreadPool::addJob(job_function job) {
+void ThreadPool::addJob(const job_function &job) {
     std::unique_lock<std::mutex> lock_guard(lock);
     jobs.push(job);
     lock_guard.unlock();

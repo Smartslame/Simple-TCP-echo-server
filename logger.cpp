@@ -1,5 +1,14 @@
 #include "logger.h"
 
+
+Logger::Logger(): isActivated(true) {
+    out.open("logs.txt", std::ios::out);
+}
+
+Logger::~Logger() {
+    out.close();
+}
+
 void Logger::setStatus(bool activated) {
     isActivated = activated;
 }
@@ -23,6 +32,7 @@ void Logger::log(const std::string &msg, int fd, const struct ::sockaddr_in &add
 }
 
 void Logger::logError(const char *msg, bool needExit) {
+
     ::perror(msg);
 
     if (isActivated) {
@@ -41,8 +51,6 @@ void Logger::logError(const char *msg, bool needExit) {
     }
 }
 
-std::string Logger::deleteLastChar(const std::string &buffer, int buffer_len, char c) {
-    return ((buffer[buffer_len-1] == c)?std::string(buffer).erase(buffer_len - 1):std::string(buffer));
+std::string Logger::deleteLastChar(const std::string &buffer, int bufferLen, char c) {
+    return ((buffer[bufferLen-1] == c)?std::string(buffer).erase(bufferLen - 1):std::string(buffer));
 }
-
-

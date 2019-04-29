@@ -1,9 +1,7 @@
 #include "serverTCP.h"
-#include "argumentParser.h"
 
 int main(int argc, char *argv[]) {
-    ServerTCP server;
-    parseArgs(argc,argv,server);
+    ServerTCP server(argc,argv);
     server.run();
     return 0;
 }
